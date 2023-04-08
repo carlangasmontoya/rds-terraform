@@ -1,45 +1,42 @@
-resource "aws_rds_cluster" "aurora_cluster" {
-  engine                         = var.engine
-  engine_version                 = var.engine_version
-  db_parameter_group_name     = var.db_parameter_group_name
-  db_subnet_group_name           = var.db_subnet_group_name
-  cluster_identifier             = var.cluster_identifier
-  master_username                = var.master_username
-  master_password                = var.master_password
-  database_name                  = var.database_name
-  backup_retention_period        = var.backup_retention_period
-  copy_tags_to_snapshot          = var.copy_tags_to_snapshot
-  deletion_protection            = var.deletion_protection
 
-  dynamic "scaling_configuration" {
-    for_each = var.capacity_type == "serverless" ? [1] : []
-    content {
-      auto_pause                = true
-      min_capacity              = var.minimum_capacity_units
-      max_capacity              = var.maximum_capacity_units
-      seconds_until_auto_pause  = 300
-    }
+# Create a new Aurora Serverless PostgreSQL cluster
+resource "aws_rds_cluster" "aurora_pg" {
+  cluster_identifier      = "my-aurora-pg-cluster"
+  engine                  = "aurora-postgresql"
+  engine_version          = "14.6"
+  database_name           = "my_database"
+  master_username         = "my_username"
+  master_password         = "my_password"
+  backup_retention_period = 7 # in days
+  preferred_backup_window = "00:00-01:00" # in UTC
+  skip_final_snapshot     = true # set to false if you want a final snapshot before deleting the cluster
+  
+  # scaling_configuration {
+  #   min_capacity = 2
+  #   max_capacity = 16
+  #   auto_pause   = true
+  #   seconds_until_auto_pause = 300
+  #   timeout_action = "ForceApplyCapacityChange"
+  # }
+
+  tags = {
+    Name = "my-aurora-pg-cluster"
   }
-
-  capacity_type = var.capacity_type == "serverless" ? "serverless" : null
-  multi_az      = var.multi_az == true ? true : false
-
-  dynamic "vpc_security_group_ids" {
-    for_each = var.security_groups
-    content {
-      vpc_security_group_id = each.value
-    }
-  }
-
-  dynamic "subnet_group" {
-    for_each = var.subnet_ids
-    content {
-      subnet_identifier = each.value
-    }
-  }
-
-  publicly_accessible = var.publicly_accessible == true ? true : false
-
-  vpc_id = var.vpc_id
-  instance_class = var.capacity_type != "serverless" ? var.instance_class : null
 }
+
+# Create a new Aurora Serverless PostgreSQL database instance
+resource "aws_rds_cluster_instance" "aurora_pg_instance" {
+  count               = 2 # change the number of instances as desired
+  cluster_identifier  = aws_rds_cluster.aurora_pg.id
+  instance_class      = "db.t3.medium"
+  identifier          = "my-aurora-pg-instance-${count.index}"
+  engine              = "aurora-postgresql"
+  publicly_accessible = false
+
+  tags = {
+    Name = "my-aurora-pg-instance-${count.index}"
+  }
+}
+
+
+
