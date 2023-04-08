@@ -1,0 +1,4 @@
+*.exe
+.aws/
+.terraform/
+.terraform.lock.hcl
